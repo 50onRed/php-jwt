@@ -43,18 +43,14 @@ class JWT
      */
     public static function decode($jwt, $key = null, $verify = true)
     {
-        $tks = explode('.', $jwt);
-        if (count($tks) != 3) {
-            throw new UnexpectedValueException('Wrong number of segments');
-        }
-        list($headb64, $bodyb64, $cryptob64) = $tks;
-        if (null === ($header = JWT::jsonDecode(JWT::urlsafeB64Decode($headb64)))) {
+        $tks = JWT::split($jwt);
+
+        if (null === ($header = JWT::jsonDecode(JWT::urlsafeB64Decode($tks['header'])))) {
             throw new UnexpectedValueException('Invalid header encoding');
         }
-        if (null === $payload = JWT::jsonDecode(JWT::urlsafeB64Decode($bodyb64))) {
+        if (null === $payload = JWT::jsonDecode(JWT::urlsafeB64Decode($tks['body']))) {
             throw new UnexpectedValueException('Invalid claims encoding');
         }
-        $sig = JWT::urlsafeB64Decode($cryptob64);
         if ($verify) {
             if (empty($header->alg)) {
                 throw new DomainException('Empty algorithm');
@@ -68,7 +64,7 @@ class JWT
             }
 
             // Check the signature
-            if (!JWT::verify("$headb64.$bodyb64", $sig, $key, $header->alg)) {
+            if (!JWT::verify($tks, $key, $header->alg)) {
                 throw new SignatureInvalidException('Signature verification failed');
             }
 
@@ -96,6 +92,31 @@ class JWT
         }
 
         return $payload;
+    }
+
+    /**
+     * Splits a JWT string into an array, if it isn't already split, and returns the result.
+     *
+     * @param object|array $payload PHP object or array
+     * @param string|array $jwt     JWT string or split tokens
+     *
+     * @return array      A split JWT token
+     *
+     * @throws UnexpectedValueException     Provided JWT was invalid
+     */
+    public static function split($jwt)
+    {
+        if (is_array($jwt)) {
+            return $jwt;
+        }
+
+        $tks = explode('.', $jwt);
+
+        if (count($tks) != 3) {
+            throw new UnexpectedValueException('Wrong number of segments');
+        }
+
+        return array_combine(array('header', 'body', 'sig'), $tks);
     }
 
     /**
@@ -161,18 +182,23 @@ class JWT
     /**
      * Verify a signature with the mesage, key and method. Not all methods
      * are symmetric, so we must have a separate verify and sign method.
-     * @param string $msg the original message
+     * @param string $tks the split jwt token
      * @param string $signature
      * @param string|resource $key for HS*, a string key works. for RS*, must be a resource of an openssl public key
      * @param string $method
      * @return bool
      * @throws DomainException Invalid Algorithm or OpenSSL failure
      */
-    public static function verify($msg, $signature, $key, $method = 'HS256')
+    public static function verify($jwt, $key, $method = 'HS256')
     {
         if (empty(self::$methods[$method])) {
             throw new DomainException('Algorithm not supported');
         }
+
+        $tks = JWT::split($jwt);
+        $msg = $tks['header'] . '.' . $tks['body'];
+        $signature = JWT::urlsafeB64Decode($tks['sig']);
+
         list($function, $algo) = self::$methods[$method];
         switch($function) {
             case 'openssl':

@@ -116,4 +116,22 @@ class JWTTest extends PHPUnit_Framework_TestCase
         $decoded = JWT::decode($msg, $keys, true);
         $this->assertEquals($decoded, 'abc');
     }
+
+    public function testSplitJWT()
+    {
+        $msg = 'eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.Iio6aHR0cDovL2FwcGxpY2F0aW9uL2NsaWNreT9ibGFoPTEuMjMmZi5vbz00NTYgQUMwMDAgMTIzIg.E_U8X2YpMT5K1cEiT_3-IvBYfrdIFIeVYeOqre_Z5Cg';
+        $tks = JWT::split($msg);
+        $this->assertEquals($tks['header'], 'eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9');
+        $this->assertEquals($tks['body'], 'Iio6aHR0cDovL2FwcGxpY2F0aW9uL2NsaWNreT9ibGFoPTEuMjMmZi5vbz00NTYgQUMwMDAgMTIzIg');
+        $this->assertEquals($tks['sig'], 'E_U8X2YpMT5K1cEiT_3-IvBYfrdIFIeVYeOqre_Z5Cg');
+        $tks2 = JWT::split($tks);
+        $this->assertEquals($tks2, $tks);
+    }
+
+    public function testVerify()
+    {
+        $msg = 'eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.Iio6aHR0cDovL2FwcGxpY2F0aW9uL2NsaWNreT9ibGFoPTEuMjMmZi5vbz00NTYgQUMwMDAgMTIzIg.E_U8X2YpMT5K1cEiT_3-IvBYfrdIFIeVYeOqre_Z5Cg';
+        $tks = JWT::split($msg);
+        $this->assertTrue(JWT::verify($tks, 'my_key'));
+    }
 }
