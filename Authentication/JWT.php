@@ -64,7 +64,7 @@ class JWT
             }
 
             // Check the signature
-            if (!JWT::verify($tks, $key, $header->alg)) {
+            if ($key && !JWT::verify($tks, $key, $header->alg)) {
                 throw new SignatureInvalidException('Signature verification failed');
             }
 
