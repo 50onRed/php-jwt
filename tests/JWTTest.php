@@ -5,14 +5,14 @@ class JWTTest extends PHPUnit_Framework_TestCase
     public function testEncodeDecode()
     {
         $msg = JWT::encode('abc', 'my_key');
-        $this->assertEquals(JWT::decode($msg, 'my_key'), 'abc');
+        $this->assertEquals(JWT::decode($msg, 'my_key')[1], 'abc');
     }
 
     public function testDecodeFromPython()
     {
         $msg = 'eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.Iio6aHR0cDovL2FwcGxpY2F0aW9uL2NsaWNreT9ibGFoPTEuMjMmZi5vbz00NTYgQUMwMDAgMTIzIg.E_U8X2YpMT5K1cEiT_3-IvBYfrdIFIeVYeOqre_Z5Cg';
         $this->assertEquals(
-            JWT::decode($msg, 'my_key'),
+            JWT::decode($msg, 'my_key')[1],
             '*:http://application/clicky?blah=1.23&f.oo=456 AC000 123'
         );
     }
@@ -20,7 +20,7 @@ class JWTTest extends PHPUnit_Framework_TestCase
     public function testUrlSafeCharacters()
     {
         $encoded = JWT::encode('f?', 'a');
-        $this->assertEquals('f?', JWT::decode($encoded, 'a'));
+        $this->assertEquals('f?', JWT::decode($encoded, 'a')[1]);
     }
 
     public function testMalformedUtf8StringsFail()
@@ -71,7 +71,7 @@ class JWTTest extends PHPUnit_Framework_TestCase
             "message" => "abc",
             "exp" => time() + 20); // time in the future
         $encoded = JWT::encode($payload, 'my_key');
-        $decoded = JWT::decode($encoded, 'my_key');
+        $decoded = JWT::decode($encoded, 'my_key')[1];
         $this->assertEquals($decoded->message, 'abc');
     }
 
@@ -83,7 +83,7 @@ class JWTTest extends PHPUnit_Framework_TestCase
             "exp" => time() + 20, // time in the future
             "nbf" => time() - 20);
         $encoded = JWT::encode($payload, 'my_key');
-        $decoded = JWT::decode($encoded, 'my_key');
+        $decoded = JWT::decode($encoded, 'my_key')[1];
         $this->assertEquals($decoded->message, 'abc');
     }
 
@@ -105,7 +105,7 @@ class JWTTest extends PHPUnit_Framework_TestCase
         $msg = JWT::encode('abc', $privKey, 'RS256');
         $pubKey = openssl_pkey_get_details($privKey);
         $pubKey = $pubKey['key'];
-        $decoded = JWT::decode($msg, $pubKey, true);
+        $decoded = JWT::decode($msg, $pubKey, true)[1];
         $this->assertEquals($decoded, 'abc');
     }
 
@@ -113,7 +113,7 @@ class JWTTest extends PHPUnit_Framework_TestCase
     {
         $keys = array('1' => 'my_key', '2' => 'my_key2');
         $msg = JWT::encode('abc', $keys['1'], 'HS256', '1');
-        $decoded = JWT::decode($msg, $keys, true);
+        $decoded = JWT::decode($msg, $keys, true)[1];
         $this->assertEquals($decoded, 'abc');
     }
 
@@ -132,6 +132,7 @@ class JWTTest extends PHPUnit_Framework_TestCase
     {
         $msg = 'eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.Iio6aHR0cDovL2FwcGxpY2F0aW9uL2NsaWNreT9ibGFoPTEuMjMmZi5vbz00NTYgQUMwMDAgMTIzIg.E_U8X2YpMT5K1cEiT_3-IvBYfrdIFIeVYeOqre_Z5Cg';
         $tks = JWT::split($msg);
-        $this->assertTrue(JWT::verify($tks, 'my_key'));
+        list(,, $signature) = JWT::decode($tks);
+        $this->assertTrue(JWT::verify($tks['header'], $tks['body'], $signature, 'my_key'));
     }
 }

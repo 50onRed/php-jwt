@@ -51,6 +51,8 @@ class JWT
         if (null === $payload = JWT::jsonDecode(JWT::urlsafeB64Decode($tks['body']))) {
             throw new UnexpectedValueException('Invalid claims encoding');
         }
+        $signature = JWT::urlsafeB64Decode($tks['sig']);
+
         if ($verify) {
             if (empty($header->alg)) {
                 throw new DomainException('Empty algorithm');
@@ -64,7 +66,7 @@ class JWT
             }
 
             // Check the signature
-            if ($key && !JWT::verify($tks, $key, $header->alg)) {
+            if ($key && !JWT::verify($tks['header'], $tks['body'], $signature, $key, $header->alg)) {
                 throw new SignatureInvalidException('Signature verification failed');
             }
 
@@ -91,7 +93,7 @@ class JWT
             }
         }
 
-        return $payload;
+        return array($header, $payload, $signature);
     }
 
     /**
@@ -189,15 +191,13 @@ class JWT
      * @return bool
      * @throws DomainException Invalid Algorithm or OpenSSL failure
      */
-    public static function verify($jwt, $key, $method = 'HS256')
+    public static function verify($headerB64, $bodyB64, $signature, $key, $method = 'HS256')
     {
         if (empty(self::$methods[$method])) {
             throw new DomainException('Algorithm not supported');
         }
 
-        $tks = JWT::split($jwt);
-        $msg = $tks['header'] . '.' . $tks['body'];
-        $signature = JWT::urlsafeB64Decode($tks['sig']);
+        $msg = "$headerB64.$bodyB64";
 
         list($function, $algo) = self::$methods[$method];
         switch($function) {
